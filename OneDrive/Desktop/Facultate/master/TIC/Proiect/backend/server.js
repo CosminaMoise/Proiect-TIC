@@ -1,37 +1,24 @@
-const express = require("express");
-const cors = require("cors");
-const admin = require("firebase-admin");
+import express from "express";
+import cors from "cors";
+import db from '../backend/config/dbConfig.js';
+import authRouter from "./routes/authRoutes.js";
 
-const PORT = 5000;
-const FIREBASE_API_KEY = "AIzaSyABPk94L4Sk2yUvQO2o4at82BtefXeoc2Q";
+// const FIREBASE_API_KEY = "AIzaSyABPk94L4Sk2yUvQO2o4at82BtefXeoc2Q";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+const port = 1234;
 
-const serviceAccount = require("./firebase-service-account.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-
-const db = admin.firestore();
-
-app.get('/test-firestore', async (req, res) => {
-  try {
-    const docRef = db.collection('testCollection').doc('testDoc');
-    await docRef.set({
-      message: 'Hello from Firestore!',
-    });
-    res.send('Data saved to Firestore!');
-  } catch (error) {
-    res.status(500).send('Error connecting to Firestore: ' + error.message);
-  }
-});
-
-app.get("/", (req, res) => {
-  res.send("Backend is running!");
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use("/api", authRouter);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}!`);
 });
