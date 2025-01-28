@@ -1,6 +1,6 @@
 import admin from "firebase-admin";
 
-export const authenticateUser = async (req, res, next) => {
+const authenticateUser = async (req, res, next) => {
   try {
     const idToken = req.headers.authorization?.split("Bearer ")[1];
     if (!idToken) {
@@ -14,3 +14,5 @@ export const authenticateUser = async (req, res, next) => {
     res.status(401).json({ error: "Invalid authentication" });
   }
 };
+
+export default authenticateUser;

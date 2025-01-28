@@ -1,146 +1,172 @@
-import db from '../config/dbConfig.js';
+import admin from "firebase-admin";
+import db from "../config/dbConfig.js";
 
 const authController = {
-    getCurrentUser: async (req, res) => {
-        try {
-            // Get user details from token verification
-            const { uid, email } = req.user;
-            
-            // Reference to the user document in Firestore
-            const userRef = db.collection('users').doc(uid);
-            const userDoc = await userRef.get();
+  getCurrentUser: async (req, res) => {
+    try {
+      const { uid, email } = req.user;
 
-            if (!userDoc.exists) {
-                return res.status(404).json({ error: 'User not found in database' });
-            }
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await userRef.get();
 
-            // Combine auth data with Firestore data
-            const userData = userDoc.data();
-            
-            // Get user's additional data in a single query
-            const userDetailsRef = db.collection('userDetails').doc(uid);
-            const userDetailsDoc = await userDetailsRef.get();
-            
-            res.status(200).json({
-                uid,
-                email,
-                ...userData,
-                details: userDetailsDoc.exists ? userDetailsDoc.data() : null
-            });
-        } catch (err) {
-            console.error('Error in getCurrentUser:', err);
-            return res.status(500).send(err.message);
-        }
-    },
+      if (!userDoc.exists) {
+        return res.status(404).json({ error: "User not found in database" });
+      }
 
-    login: async (req, res) => {
-        try {
-            const { idToken } = req.body;
-            
-            // Verify Firebase token
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const { uid, email } = decodedToken;
+      const userData = userDoc.data();
 
-            // Get user data with a single query
-            const userRef = db.collection('users').doc(uid);
-            const userDoc = await userRef.get();
+      const userDetailsRef = db.collection("userDetails").doc(uid);
+      const userDetailsDoc = await userDetailsRef.get();
 
-            if (!userDoc.exists) {
-                // If user document doesn't exist, create it
-                const userData = {
-                    email,
-                    role: email.endsWith('@csie.ase.ro') ? 'admin' : 'student',
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                    lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-                    loginCount: 1
-                };
-
-                await userRef.set(userData);
-
-                return res.status(200).json({
-                    uid,
-                    ...userData,
-                    email
-                });
-            }
-
-            // Update last login time and increment login count
-            await userRef.update({
-                lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-                loginCount: admin.firestore.FieldValue.increment(1)
-            });
-
-            res.status(200).json({
-                uid,
-                email,
-                ...userDoc.data()
-            });
-        } catch (err) {
-            console.error('Error in login:', err);
-            return res.status(500).send(err.message);
-        }
-    },
-
-    updateUserProfile: async (req, res) => {
-        try {
-            const { uid } = req.user;
-            const updates = req.body;
-
-            // Reference to user document
-            const userRef = db.collection('users').doc(uid);
-            
-            // Update user profile using Firestore atomic operations
-            await userRef.update({
-                ...updates,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            // Get updated user data
-            const updatedDoc = await userRef.get();
-            
-            res.status(200).json({
-                uid,
-                ...updatedDoc.data()
-            });
-        } catch (err) {
-            console.error('Error updating profile:', err);
-            return res.status(500).send(err.message);
-        }
-    },
-
-    // Example of batch operations
-    createUserWithDetails: async (req, res) => {
-        try {
-            const { uid } = req.user;
-            const { profile, details } = req.body;
-
-            // Create a batch for atomic operations
-            const batch = db.batch();
-
-            // Reference to user documents
-            const userRef = db.collection('users').doc(uid);
-            const detailsRef = db.collection('userDetails').doc(uid);
-
-            // Set up batch operations
-            batch.set(userRef, {
-                ...profile,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            batch.set(detailsRef, {
-                ...details,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            // Commit the batch
-            await batch.commit();
-
-            res.status(201).json({ message: 'User profile created successfully' });
-        } catch (err) {
-            console.error('Error in createUserWithDetails:', err);
-            return res.status(500).send(err.message);
-        }
+      res.status(200).json({
+        uid,
+        email,
+        ...userData,
+        details: userDetailsDoc.exists ? userDetailsDoc.data() : null,
+      });
+    } catch (err) {
+      console.error("Error in getCurrentUser:", err);
+      return res.status(500).send(err.message);
     }
+  },
+
+  register: async (req, res) => {
+    try {
+      const { email, password, fullName } = req.body;
+
+      if (!email || !password || !fullName) {
+        return res.status(400).json({
+          error:
+            "Please provide all required fields: email, password, and full name",
+        });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          error: "Please provide a valid email address",
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({
+          error: "Password must be at least 6 characters long",
+        });
+      }
+
+      const userRecord = await admin.auth().createUser({
+        email,
+        password,
+        displayName: fullName,
+        emailVerified: false,
+      });
+
+      const userData = {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        fullName,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLogin: null,
+        isActive: true,
+        preferences: {
+          notifications: true,
+          theme: "light",
+        },
+        profile: {
+          bio: "",
+          avatar: null,
+          socialLinks: {},
+        },
+      };
+
+      await db.collection("users").doc(userRecord.uid).set(userData);
+
+      res.status(201).json({
+        message: "User registered successfully",
+        user: {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          fullName,
+          createdAt: userData.createdAt,
+        },
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      const errorMessages = {
+        "auth/email-already-exists":
+          "An account with this email already exists",
+        "auth/invalid-password": "Password must be at least 6 characters long",
+        "auth/invalid-email": "The email address is not valid",
+        "auth/weak-password": "The password is too weak",
+      };
+
+      if (error.code && errorMessages[error.code]) {
+        return res.status(400).json({
+          error: errorMessages[error.code],
+        });
+      }
+
+      res.status(500).json({
+        error: "Registration failed. Please try again later.",
+      });
+    }
+  },
+
+  login: async (req, res) => {
+    try {
+      const { idToken } = req.body;
+
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const { uid, email } = decodedToken;
+
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        const userData = {
+          email,
+          role: email.endsWith("@csie.ase.ro") ? "admin" : "student",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+          loginCount: 1,
+        };
+
+        await userRef.set(userData);
+
+        return res.status(200).json({
+          uid,
+          ...userData,
+          email,
+        });
+      }
+
+      await userRef.update({
+        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+        loginCount: admin.firestore.FieldValue.increment(1),
+      });
+
+      res.status(200).json({
+        uid,
+        email,
+        ...userDoc.data(),
+      });
+    } catch (err) {
+      console.error("Error in login:", err);
+      return res.status(500).send(err.message);
+    }
+  },
+  logout: async (req, res) => {
+    try {
+      res.status(200).json({
+        message: "Logout successful",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({
+        error: "Logout failed",
+      });
+    }
+  },
 };
 
 export default authController;
