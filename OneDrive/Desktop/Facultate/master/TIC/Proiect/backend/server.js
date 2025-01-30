@@ -1,9 +1,8 @@
 import express from "express";
 import cors from "cors";
-import db from '../backend/config/dbConfig.js';
+import db from "../backend/config/dbConfig.js";
+import bookRouter from "./routes/bookRoutes.js";
 import authRouter from "./routes/authRoutes.js";
-
-// const FIREBASE_API_KEY = "AIzaSyABPk94L4Sk2yUvQO2o4at82BtefXeoc2Q";
 
 const app = express();
 app.use(cors());
@@ -19,6 +18,7 @@ app.use(
 );
 app.use(express.json());
 app.use("/api/auth", authRouter);
+app.use("/api/books", bookRouter);
 app.listen(port, () => {
   console.log(`Server is running on port ${port}!`);
 });

@@ -1,28 +1,20 @@
+// authController.js
 import admin from "firebase-admin";
 import db from "../config/dbConfig.js";
 
 const authController = {
   getCurrentUser: async (req, res) => {
     try {
-      const { uid, email } = req.user;
-
+      const { uid } = req.user;
       const userRef = db.collection("users").doc(uid);
       const userDoc = await userRef.get();
 
       if (!userDoc.exists) {
         return res.status(404).json({ error: "User not found in database" });
       }
-
-      const userData = userDoc.data();
-
-      const userDetailsRef = db.collection("userDetails").doc(uid);
-      const userDetailsDoc = await userDetailsRef.get();
-
       res.status(200).json({
-        uid,
-        email,
-        ...userData,
-        details: userDetailsDoc.exists ? userDetailsDoc.data() : null,
+        success: true,
+        data: userDoc.data(),
       });
     } catch (err) {
       console.error("Error in getCurrentUser:", err);
@@ -64,30 +56,44 @@ const authController = {
       const userData = {
         uid: userRecord.uid,
         email: userRecord.email,
-        fullName,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastLogin: null,
-        isActive: true,
+        profile: {
+          fullName,
+          bio: "",
+          avatar: null,
+          socialLinks: [],
+        },
         preferences: {
           notifications: true,
           theme: "light",
         },
-        profile: {
-          bio: "",
-          avatar: null,
-          socialLinks: {},
+        activity: {
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastLogin: null,
+          loginHistory: [],
+          isActive: true,
+        },
+        permissions: {
+          role: "user",
+          accessLevel: 1,
+          restrictedFeatures: [],
+        },
+        metadata: {
+          deviceInfo: [],
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         },
       };
 
       await db.collection("users").doc(userRecord.uid).set(userData);
 
       res.status(201).json({
+        success: true,
         message: "User registered successfully",
-        user: {
+        data: {
           uid: userRecord.uid,
           email: userRecord.email,
-          fullName,
-          createdAt: userData.createdAt,
+          profile: {
+            fullName: userData.profile.fullName,
+          },
         },
       });
     } catch (error) {
@@ -102,11 +108,13 @@ const authController = {
 
       if (error.code && errorMessages[error.code]) {
         return res.status(400).json({
+          success: false,
           error: errorMessages[error.code],
         });
       }
 
       res.status(500).json({
+        success: false,
         error: "Registration failed. Please try again later.",
       });
     }
@@ -117,52 +125,60 @@ const authController = {
       const { idToken } = req.body;
 
       const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const { uid, email } = decodedToken;
+      const { uid } = decodedToken;
 
       const userRef = db.collection("users").doc(uid);
+
       const userDoc = await userRef.get();
 
       if (!userDoc.exists) {
-        const userData = {
-          email,
-          role: email.endsWith("@csie.ase.ro") ? "admin" : "student",
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-          loginCount: 1,
-        };
-
-        await userRef.set(userData);
-
-        return res.status(200).json({
-          uid,
-          ...userData,
-          email,
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
         });
       }
 
       await userRef.update({
-        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-        loginCount: admin.firestore.FieldValue.increment(1),
+        "activity.lastLogin": admin.firestore.FieldValue.serverTimestamp(),
+        "activity.loginHistory": admin.firestore.FieldValue.arrayUnion({
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          success: true,
+        }),
+        "metadata.lastUpdated": admin.firestore.FieldValue.serverTimestamp(),
       });
 
+      const updatedUserDoc = await userRef.get();
+
       res.status(200).json({
-        uid,
-        email,
-        ...userDoc.data(),
+        success: true,
+        data: updatedUserDoc.data(),
       });
     } catch (err) {
       console.error("Error in login:", err);
-      return res.status(500).send(err.message);
+      return res.status(500).json({
+        success: false,
+        error: err.message,
+      });
     }
   },
+
   logout: async (req, res) => {
     try {
+      const { uid } = req.user;
+
+      await db.collection("users").doc(uid).update({
+        "activity.lastLogout": admin.firestore.FieldValue.serverTimestamp(),
+        "metadata.lastUpdated": admin.firestore.FieldValue.serverTimestamp(),
+      });
+
       res.status(200).json({
+        success: true,
         message: "Logout successful",
       });
     } catch (error) {
       console.error("Logout error:", error);
       res.status(500).json({
+        success: false,
         error: "Logout failed",
       });
     }
