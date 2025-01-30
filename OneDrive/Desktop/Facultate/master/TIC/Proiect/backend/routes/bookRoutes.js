@@ -1,10 +1,8 @@
 import { Router } from "express";
 import bookController from "../controllers/bookController.js";
 import authenticateUser from "../middleware/authMiddleware.js";
-import {
-  validateBookCreate,
-  validateBookUpdate,
-} from "../middleware/validationBookMiddleware.js";
+import validateBookCreate from "../middleware/validationBookCreateMiddleware.js";
+import validateBookUpdate from "../middleware/validationBookUpdateMiddleware.js";
 
 const router = Router();
 
