@@ -142,20 +142,16 @@ const bookController = {
         order = "asc",
       } = req.query;
 
-      // Creăm query-ul de bază
       let booksRef = db.collection("books");
 
-      // Adăugăm sortarea
       booksRef = booksRef.orderBy(sortBy, order);
 
-      // Implementăm paginarea
       const startAt = (page - 1) * limit;
       const snapshot = await booksRef
         .limit(parseInt(limit))
         .offset(startAt)
         .get();
 
-      // Procesăm rezultatele
       const books = [];
       snapshot.forEach((doc) => {
         books.push({
@@ -182,7 +178,6 @@ const bookController = {
     }
   },
 
-  // Obține o carte specifică
   getBookById: async (req, res) => {
     try {
       const { bookId } = req.params;
@@ -213,13 +208,11 @@ const bookController = {
     }
   },
 
-  // Șterge o carte
   deleteBook: async (req, res) => {
     try {
       const { bookId } = req.params;
       const { uid } = req.user;
 
-      // Verificăm dacă cartea există
       const bookRef = db.collection("books").doc(bookId);
       const bookDoc = await bookRef.get();
 
@@ -230,7 +223,6 @@ const bookController = {
         });
       }
 
-      // Verificăm dacă utilizatorul are permisiunea să șteargă cartea
       const bookData = bookDoc.data();
       if (bookData.metadata.createdBy !== uid) {
         return res.status(403).json({
@@ -239,7 +231,6 @@ const bookController = {
         });
       }
 
-      // Verificăm dacă cartea este împrumutată
       if (bookData.status.currentBorrower) {
         return res.status(400).json({
           success: false,
@@ -247,7 +238,6 @@ const bookController = {
         });
       }
 
-      // Ștergem cartea
       await bookRef.delete();
 
       res.status(200).json({
@@ -263,7 +253,6 @@ const bookController = {
     }
   },
 
-  // Căutare cărți
   searchBooks: async (req, res) => {
     try {
       const { query, field = "title", limit = 10 } = req.query;
@@ -275,7 +264,6 @@ const bookController = {
         });
       }
 
-      // Creăm query-ul pentru căutare
       const booksRef = db.collection("books");
       const snapshot = await booksRef
         .where(field, ">=", query)
