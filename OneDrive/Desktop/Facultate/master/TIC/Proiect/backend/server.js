@@ -2,13 +2,16 @@ import express from "express";
 import cors from "cors";
 import bookRouter from "./routes/bookRoutes.js";
 import authRouter from "./routes/authRoutes.js";
-import db, { testConnection, populateDatabase, clearDatabase } from '../backend/config/dbConfig.js'
-
+import db, {
+  testConnection,
+  populateDatabase,
+  clearDatabase,
+} from "../backend/config/dbConfig.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-const port = 3000;
+const port = 5173;
 
 app.use(
   cors({

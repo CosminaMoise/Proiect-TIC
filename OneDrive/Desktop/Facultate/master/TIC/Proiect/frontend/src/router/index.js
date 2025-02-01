@@ -1,33 +1,40 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { store } from '../stores/auth.js'
+import LoginView from '../views/LoginView.vue'
+import RegisterView from '../views/RegisterView.vue'
 
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: () => import('../views/HomeView.vue')
+    redirect: '/login',
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/LoginView.vue')
+    component: LoginView,
   },
-  // {
-  //   path: '/books',
-  //   name: 'Books',
-  //   component: () => import('../views/Books.vue'),
-  //   meta: { requiresAuth: true }
-  // }
+  {
+    path: '/register',
+    name: 'Register',
+    component: RegisterView,
+  },
+  {
+    path: '/books',
+    name: 'Books',
+    component: () => import('../views/BookView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 })
 
-// Navigation guard for authentication
 router.beforeEach((to, from, next) => {
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-  
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  const isAuthenticated = store.getters.isAuthenticated
+
   if (requiresAuth && !isAuthenticated) {
     next('/login')
   } else {
@@ -36,4 +43,3 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
-

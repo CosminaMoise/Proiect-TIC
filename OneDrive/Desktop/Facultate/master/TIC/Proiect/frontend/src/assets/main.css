@@ -1,35 +1,67 @@
-@import './base.css';
+:root {
+  --primary-color: #4a90e2;
+  --error-color: #e44;
+  --success-color: #4caf50;
+  --text-color: #333;
+  --border-color: #ddd;
+}
 
-#app {
-  max-width: 1280px;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+  padding: 0 20px;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+.btn-primary:hover {
+  background-color: #357abd;
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
+.form-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.error {
+  color: var(--error-color);
+  background-color: #fee;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.success {
+  color: var(--success-color);
+  background-color: #e8f5e9;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
 }
