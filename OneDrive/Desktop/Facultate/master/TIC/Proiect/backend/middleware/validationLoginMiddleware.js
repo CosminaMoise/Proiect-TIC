@@ -1,10 +1,10 @@
-
 const validateLogin = (req, res, next) => {
-  const { idToken } = req.body;
+  const { email, password } = req.body;
 
-  if (!idToken) {
+  if (!email || !password) {
     return res.status(400).json({
-      error: "Missing ID token",
+      success: false,
+      error: "Email and password are required",
     });
   }
 

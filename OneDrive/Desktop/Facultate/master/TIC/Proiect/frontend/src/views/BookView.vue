@@ -3,80 +3,55 @@
     <div class="books-header">
       <div class="header-left">
         <h1>Library Books</h1>
+        <span class="welcome-text">Welcome, {{ currentUser?.profile?.fullName || 'Guest' }}</span>
       </div>
       <div class="header-right">
         <button @click="openAddModal" class="btn btn-add">Add New Book</button>
         <button @click="logout" class="btn btn-logout">Logout</button>
       </div>
     </div>
-    <div class="books-container">
-      <div class="books-header">
-        <h1>Library Books</h1>
-        <div class="user-controls">
-          <span class="welcome-text">Welcome, {{ currentUser?.fullName }}</span>
-          <button class="btn btn-primary" @click="logout">Logout</button>
-        </div>
-      </div>
 
-      <div v-if="loading" class="loading-state">Loading books...</div>
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">Loading books...</div>
 
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-
-      <div v-if="books.length" class="books-grid">
-        <div v-for="book in books" :key="book.id" class="book-card">
-          <div class="book-image">
-            <img :src="book.imageUrl || '/default-book.jpg'" :alt="book.title" />
-          </div>
-          <div class="book-info">
-            <h3>{{ book.title }}</h3>
-            <p class="book-author">by {{ book.author }}</p>
-            <p class="book-details">
-              Published: {{ book.publishYear }}<br />
-              Publisher: {{ book.publisher }}<br />
-              Location: {{ book.publishLocation }}
-            </p>
-            <p class="book-description">{{ book.description }}</p>
-            <div class="book-uploader">
-              <span class="uploader-label">Added by:</span>
-              <span class="uploader-name">{{ book.metadata?.createdBy || 'Unknown' }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="!loading" class="empty-state">No books found in the library.</div>
+    <!-- Error Message -->
+    <div v-if="error" class="error-message">
+      {{ error }}
     </div>
-    <div v-for="book in books" :key="book.id" class="book-card">
-      <div class="book-image">
-        <img :src="book.imageUrl || '/default-book.jpg'" :alt="book.title" />
-      </div>
-      <div class="book-info">
-        <h3>{{ book.title }}</h3>
-        <p class="book-author">by {{ book.author }}</p>
-        <p class="book-details">
-          Published: {{ book.publishYear }}<br />
-          Publisher: {{ book.publisher }}<br />
-          Location: {{ book.publishLocation }}
-        </p>
-        <p class="book-description">{{ book.description }}</p>
-        <div class="book-uploader">
-          <span class="uploader-label">Added by:</span>
-          <span class="uploader-name">{{ book.metadata?.createdBy || 'Unknown' }}</span>
+
+    <!-- Books Grid -->
+    <div v-if="books.length" class="books-grid">
+      <div v-for="book in books" :key="book.id" class="book-card">
+        <div class="book-image">
+          <img :src="book.imageUrl || '/default-book.jpg'" :alt="book.title" />
         </div>
+        <div class="book-info">
+          <h3>{{ book.title }}</h3>
+          <p class="book-author">by {{ book.author }}</p>
+          <p class="book-details">
+            Published: {{ book.publishYear }}<br />
+            Publisher: {{ book.publisher }}<br />
+            Location: {{ book.publishLocation }}
+          </p>
+          <p class="book-description">{{ book.description }}</p>
+          <div class="book-uploader">
+            <span class="uploader-label">Added by:</span>
+            <span class="uploader-name">{{ book.metadata?.creatorName || 'Unknown' }}</span>
+          </div>
 
-        <button @click="openEditModal(book)" class="btn btn-edit">Edit Book</button>
-
-        <button
-          v-if="book.metadata?.createdBy === currentUser?.uid"
-          @click="deleteBook(book.id)"
-          class="btn btn-delete"
-        >
-          Delete Book
-        </button>
+          <!-- Book Actions -->
+          <div class="book-actions" v-if="book.metadata?.createdBy === currentUser?.uid">
+            <button @click="openEditModal(book)" class="btn btn-edit">Edit</button>
+            <button @click="deleteBook(book.id)" class="btn btn-delete">Delete</button>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Empty State -->
+    <div v-else-if="!loading" class="empty-state">No books found in the library.</div>
+
+    <!-- Modals -->
     <EditBookModal
       :show="showEditModal"
       :book="selectedBook"
@@ -92,8 +67,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import EditModel from '../components/EditBookModel.js'
-import AddBookModal from '../components/AddBookModal.vue'
+import EditBookModal from '@/components/EditBookModal.vue'
+import AddBookModal from '@/components/AddBookModal.vue'
 
 export default {
   components: {
@@ -106,6 +81,9 @@ export default {
     const books = ref([])
     const loading = ref(true)
     const error = ref(null)
+    const showEditModal = ref(false)
+    const selectedBook = ref(null)
+    const showAddModal = ref(false)
 
     const currentUser = computed(() => store.getters.currentUser)
 
@@ -114,7 +92,7 @@ export default {
         loading.value = true
         error.value = null
 
-        const response = await axios.get('http://localhost:1234/api/books', {
+        const response = await axios.get('http://localhost:3000/api/books', {
           headers: {
             Authorization: `Bearer ${currentUser.value?.token}`,
           },
@@ -174,7 +152,6 @@ export default {
       }
       closeEditModal()
     }
-    const showAddModal = ref(false)
 
     const openAddModal = () => {
       showAddModal.value = true
@@ -185,7 +162,7 @@ export default {
     }
 
     const handleBookAdded = (newBook) => {
-      books.value.unshift(newBook) 
+      books.value.unshift(newBook)
     }
 
     return {
@@ -430,5 +407,30 @@ export default {
 
 .btn-logout:hover {
   background-color: #da190b;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.welcome-text {
+  color: #666;
+  font-size: 16px;
+}
+
+.books-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 30px;
+}
+
+.header-right {
+  display: flex;
+  gap: 15px;
 }
 </style>

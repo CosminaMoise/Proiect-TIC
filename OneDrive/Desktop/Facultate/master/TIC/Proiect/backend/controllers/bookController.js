@@ -29,6 +29,9 @@ const bookController = {
         });
       }
 
+      const userDoc = await db.collection("users").doc(uid).get();
+      const userData = userDoc.data();
+
       const bookData = {
         title,
         author,
@@ -39,6 +42,7 @@ const bookController = {
         imageUrl: imageUrl || null,
         metadata: {
           createdBy: uid,
+          creatorName: userData.profile.fullName,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -68,6 +72,41 @@ const bookController = {
       });
     }
   },
+
+  updateExistingBooks: async (req, res) => {
+    try {
+      const booksRef = db.collection("books");
+      const snapshot = await booksRef.get();
+
+      for (const doc of snapshot.docs) {
+        const bookData = doc.data();
+        if (!bookData.metadata.creatorName) {
+          const creatorDoc = await db
+            .collection("users")
+            .doc(bookData.metadata.createdBy)
+            .get();
+
+          if (creatorDoc.exists) {
+            await doc.ref.update({
+              "metadata.creatorName": creatorDoc.data().profile.fullName,
+            });
+          }
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Existing books updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating existing books:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update existing books",
+      });
+    }
+  },
+
   updateBook: async (req, res) => {
     try {
       const { bookId } = req.params;

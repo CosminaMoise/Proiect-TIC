@@ -1,14 +1,14 @@
 import { createStore } from 'vuex'
 import axios from 'axios'
 
-const API_URL = 'http://localhost:5173/api/auth'
+const API_URL = 'http://localhost:3000/api/auth'
 
 export const store = createStore({
   state: {
     user: JSON.parse(localStorage.getItem('user')) || null,
     loading: false,
     error: null,
-    isAuthenticated: false,
+    //isAuthenticated: false,
   },
 
   mutations: {
@@ -67,8 +67,17 @@ export const store = createStore({
           password,
         })
 
-        commit('SET_USER', response.data)
-        return { success: true }
+        if (response.data.success) {
+          const userData = response.data.data
+          // Salvăm token-ul și datele utilizatorului
+          commit('SET_USER', {
+            ...userData,
+            token: userData.token,
+          })
+          return { success: true }
+        } else {
+          throw new Error(response.data.error || 'Login failed')
+        }
       } catch (error) {
         const errorMessage = error.response?.data?.error || 'Login failed'
         commit('SET_ERROR', errorMessage)

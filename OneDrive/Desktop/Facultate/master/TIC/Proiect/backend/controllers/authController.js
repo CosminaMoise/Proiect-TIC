@@ -1,4 +1,3 @@
-// authController.js
 import admin from "firebase-admin";
 import db from "../config/dbConfig.js";
 
@@ -24,10 +23,14 @@ const authController = {
 
   register: async (req, res) => {
     try {
+      console.log("Starting registration process");
       const { email, password, fullName } = req.body;
+
+      console.log("Registration attempt:", { email, fullName });
 
       if (!email || !password || !fullName) {
         return res.status(400).json({
+          success: false,
           error:
             "Please provide all required fields: email, password, and full name",
         });
@@ -36,22 +39,27 @@ const authController = {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({
+          success: false,
           error: "Please provide a valid email address",
         });
       }
 
       if (password.length < 6) {
         return res.status(400).json({
+          success: false,
           error: "Password must be at least 6 characters long",
         });
       }
 
+      console.log("Creating user in Firebase Auth");
       const userRecord = await admin.auth().createUser({
         email,
         password,
         displayName: fullName,
         emailVerified: false,
       });
+
+      console.log("User created in Firebase Auth:", userRecord.uid);
 
       const userData = {
         uid: userRecord.uid,
@@ -83,7 +91,12 @@ const authController = {
         },
       };
 
+      console.log("Creating user document in Firestore");
+
       await db.collection("users").doc(userRecord.uid).set(userData);
+      console.log("User document created in Firestore");
+
+      const customToken = await admin.auth().createCustomToken(userRecord.uid);
 
       res.status(201).json({
         success: true,
@@ -91,6 +104,7 @@ const authController = {
         data: {
           uid: userRecord.uid,
           email: userRecord.email,
+          token: customToken,
           profile: {
             fullName: userData.profile.fullName,
           },
@@ -98,6 +112,7 @@ const authController = {
       });
     } catch (error) {
       console.error("Registration error:", error);
+
       const errorMessages = {
         "auth/email-already-exists":
           "An account with this email already exists",
@@ -113,51 +128,76 @@ const authController = {
         });
       }
 
+      const errorMessage =
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Registration failed. Please try again later.";
+
       res.status(500).json({
         success: false,
-        error: "Registration failed. Please try again later.",
+        error: errorMessage,
       });
     }
   },
 
+  // controllers/authController.js - modifică funcția login
   login: async (req, res) => {
     try {
-      const { idToken } = req.body;
+      const { email, password } = req.body;
 
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const { uid } = decodedToken;
-
-      const userRef = db.collection("users").doc(uid);
-
-      const userDoc = await userRef.get();
-
-      if (!userDoc.exists) {
-        return res.status(404).json({
+      if (!email || !password) {
+        return res.status(400).json({
           success: false,
-          error: "User not found",
+          error: "Email and password are required",
         });
       }
 
-      await userRef.update({
-        "activity.lastLogin": admin.firestore.FieldValue.serverTimestamp(),
-        "activity.loginHistory": admin.firestore.FieldValue.arrayUnion({
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      try {
+        const userRecord = await admin.auth().getUserByEmail(email);
+
+        const userRef = db.collection("users").doc(userRecord.uid);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) {
+          return res.status(404).json({
+            success: false,
+            error: "User not found",
+          });
+        }
+
+        await userRef.update({
+          "activity.lastLogin": admin.firestore.FieldValue.serverTimestamp(),
+          "activity.loginHistory": admin.firestore.FieldValue.arrayUnion({
+            timestamp: new Date().toISOString(),
+            success: true,
+          }),
+        });
+
+        const customToken = await admin
+          .auth()
+          .createCustomToken(userRecord.uid);
+
+        res.status(200).json({
           success: true,
-        }),
-        "metadata.lastUpdated": admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      const updatedUserDoc = await userRef.get();
-
-      res.status(200).json({
-        success: true,
-        data: updatedUserDoc.data(),
-      });
-    } catch (err) {
-      console.error("Error in login:", err);
-      return res.status(500).json({
+          data: {
+            uid: userRecord.uid,
+            email: userRecord.email,
+            token: customToken,
+            ...userDoc.data(),
+          },
+        });
+      } catch (authError) {
+        console.error("Authentication error:", authError);
+        return res.status(401).json({
+          success: false,
+          error: "Invalid email or password",
+        });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({
         success: false,
-        error: err.message,
+        error: "Login failed",
       });
     }
   },

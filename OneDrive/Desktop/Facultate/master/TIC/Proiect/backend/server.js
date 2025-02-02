@@ -9,9 +9,7 @@ import db, {
 } from "../backend/config/dbConfig.js";
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-const port = 5173;
+const port = 3000;
 
 app.use(
   cors({
@@ -20,14 +18,11 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
+
 app.use("/api/auth", authRouter);
 app.use("/api/books", bookRouter);
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}!`);
-});
-
-testConnection();
 
 app.post("/api/populate-db", async (req, res) => {
   try {
@@ -45,4 +40,9 @@ app.post("/api/clear-db", async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: "Failed to clear database" });
   }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}!`);
+  testConnection();
 });
