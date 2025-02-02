@@ -6,42 +6,54 @@
       <form @submit.prevent="handleSubmit" class="edit-form">
         <div class="form-group">
           <label>Title:</label>
-          <input v-model="formData.title" type="text" required />
+          <input v-model="formData.title" type="text" :placeholder="book.title" />
         </div>
 
         <div class="form-group">
           <label>Author:</label>
-          <input v-model="formData.author" type="text" required />
+          <input v-model="formData.author" type="text" :placeholder="book.author" />
         </div>
 
         <div class="form-group">
           <label>Publisher:</label>
-          <input v-model="formData.publisher" type="text" required />
+          <input v-model="formData.publisher" type="text" :placeholder="book.publisher" />
         </div>
 
         <div class="form-group">
           <label>Publish Year:</label>
-          <input v-model="formData.publishYear" type="number" required />
+          <input v-model="formData.publishYear" type="number" :placeholder="book.publishYear" />
         </div>
 
         <div class="form-group">
           <label>Publish Location:</label>
-          <input v-model="formData.publishLocation" type="text" required />
+          <input
+            v-model="formData.publishLocation"
+            type="text"
+            :placeholder="book.publishLocation"
+          />
         </div>
 
         <div class="form-group">
           <label>Description:</label>
-          <textarea v-model="formData.description" rows="4" required></textarea>
+          <textarea
+            v-model="formData.description"
+            rows="4"
+            :placeholder="book.description"
+          ></textarea>
         </div>
 
         <div class="form-group">
           <label>Image URL:</label>
-          <input v-model="formData.imageUrl" type="url" />
+          <input
+            v-model="formData.imageUrl"
+            type="url"
+            :placeholder="book.imageUrl || 'Enter image URL'"
+          />
         </div>
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
-          <button type="submit" class="btn btn-primary" :disabled="loading">
+          <button type="submit" class="btn btn-primary" :disabled="loading || !hasChanges">
             {{ loading ? 'Saving...' : 'Save Changes' }}
           </button>
         </div>
@@ -55,7 +67,8 @@
 </template>
 
 <script>
-import { ref, defineProps, defineEmits } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useStore } from 'vuex'
 import axios from 'axios'
 
 export default {
@@ -67,25 +80,63 @@ export default {
   emits: ['close', 'book-updated'],
 
   setup(props, { emit }) {
+    const store = useStore()
     const loading = ref(false)
     const error = ref('')
-    const formData = ref({ ...props.book })
+    const formData = ref({})
+
+    watch(
+      () => props.show,
+      (newVal) => {
+        if (newVal) {
+          formData.value = {}
+        }
+      },
+    )
+
+    const hasChanges = computed(() => {
+      return Object.keys(formData.value).some((key) => {
+        return (
+          formData.value[key] !== undefined &&
+          formData.value[key] !== null &&
+          formData.value[key] !== '' &&
+          formData.value[key] !== props.book[key]
+        )
+      })
+    })
 
     const closeModal = () => {
+      formData.value = {}
+      error.value = ''
       emit('close')
     }
 
     const handleSubmit = async () => {
       try {
+        if (!hasChanges.value) {
+          return
+        }
         loading.value = true
         error.value = ''
 
+        const changedData = Object.keys(formData.value).reduce((acc, key) => {
+          if (
+            formData.value[key] !== undefined &&
+            formData.value[key] !== null &&
+            formData.value[key] !== '' &&
+            formData.value[key] !== props.book[key]
+          ) {
+            acc[key] = formData.value[key]
+          }
+          return acc
+        }, {})
+
         const response = await axios.put(
-          `http://localhost:1234/api/books/${props.book.id}`,
-          formData.value,
+          `http://localhost:3000/api/books/${props.book.id}`,
+          changedData,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              Authorization: `Bearer ${store.getters.currentUser?.token}`,
             },
           },
         )
@@ -103,6 +154,7 @@ export default {
       formData,
       loading,
       error,
+      hasChanges,
       closeModal,
       handleSubmit,
     }

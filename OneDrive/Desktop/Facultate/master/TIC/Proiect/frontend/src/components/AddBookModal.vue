@@ -68,6 +68,7 @@
 
 <script>
 import { ref } from 'vue'
+import { useStore } from 'vuex'
 import axios from 'axios'
 
 export default {
@@ -78,6 +79,7 @@ export default {
   emits: ['close', 'book-added'],
 
   setup(props, { emit }) {
+    const store = useStore()
     const currentYear = new Date().getFullYear()
     const loading = ref(false)
     const error = ref('')
@@ -110,12 +112,14 @@ export default {
         loading.value = true
         error.value = ''
 
+        console.log('Current token:', store.getters.currentUser?.token)
+
         const response = await axios.post(
-          'http://localhost:5173/api/books/create',
+          'http://localhost:3000/api/books/create',
           formData.value,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              Authorization: `Bearer ${store.getters.currentUser?.token}`,
             },
           },
         )

@@ -1,5 +1,7 @@
 import { createStore } from 'vuex'
 import axios from 'axios'
+import { auth } from '..//firebaseConfig.js'
+import { signInWithCustomToken } from 'firebase/auth'
 
 const API_URL = 'http://localhost:3000/api/auth'
 
@@ -8,7 +10,6 @@ export const store = createStore({
     user: JSON.parse(localStorage.getItem('user')) || null,
     loading: false,
     error: null,
-    //isAuthenticated: false,
   },
 
   mutations: {
@@ -69,17 +70,25 @@ export const store = createStore({
 
         if (response.data.success) {
           const userData = response.data.data
-          // Salvăm token-ul și datele utilizatorului
-          commit('SET_USER', {
-            ...userData,
-            token: userData.token,
-          })
-          return { success: true }
+          try {
+            const userCredential = await signInWithCustomToken(auth, userData.token)
+            const idToken = await userCredential.user.getIdToken()
+
+            commit('SET_USER', {
+              ...userData,
+              token: idToken,
+            })
+            return { success: true }
+          } catch (firebaseError) {
+            console.error('Firebase auth error:', firebaseError)
+            throw new Error('Failed to authenticate with Firebase')
+          }
         } else {
           throw new Error(response.data.error || 'Login failed')
         }
       } catch (error) {
-        const errorMessage = error.response?.data?.error || 'Login failed'
+        console.error('Login error:', error)
+        const errorMessage = error.response?.data?.error || error.message || 'Login failed'
         commit('SET_ERROR', errorMessage)
         return { success: false, error: errorMessage }
       } finally {

@@ -140,7 +140,6 @@ const authController = {
     }
   },
 
-  // controllers/authController.js - modifică funcția login
   login: async (req, res) => {
     try {
       const { email, password } = req.body;

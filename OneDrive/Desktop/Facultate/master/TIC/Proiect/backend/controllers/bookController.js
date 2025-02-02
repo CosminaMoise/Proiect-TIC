@@ -172,24 +172,38 @@ const bookController = {
       });
     }
   },
+
+  clearAllBooks: async (req, res) => {
+    try {
+      const booksRef = db.collection("books");
+      const snapshot = await booksRef.get();
+
+      // Delete all books in a batch operation
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+
+      res.status(200).json({
+        success: true,
+        message: `Deleted ${snapshot.size} books`,
+      });
+    } catch (error) {
+      console.error("Error clearing database:", error);
+      res.status(500).json({ error: "Failed to clear database" });
+    }
+  },
+
   getAllBooks: async (req, res) => {
     try {
-      const {
-        limit = 10,
-        page = 1,
-        sortBy = "title",
-        order = "asc",
-      } = req.query;
+      const { sortBy = "title", order = "asc" } = req.query;
 
       let booksRef = db.collection("books");
 
       booksRef = booksRef.orderBy(sortBy, order);
 
-      const startAt = (page - 1) * limit;
-      const snapshot = await booksRef
-        .limit(parseInt(limit))
-        .offset(startAt)
-        .get();
+      const snapshot = await booksRef.get();
 
       const books = [];
       snapshot.forEach((doc) => {
@@ -203,8 +217,6 @@ const bookController = {
         success: true,
         data: books,
         metadata: {
-          page: parseInt(page),
-          limit: parseInt(limit),
           total: snapshot.size,
         },
       });

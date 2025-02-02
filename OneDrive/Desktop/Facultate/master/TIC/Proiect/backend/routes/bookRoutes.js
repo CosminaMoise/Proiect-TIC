@@ -6,6 +6,8 @@ import validateBookUpdate from "../middleware/validationBookUpdateMiddleware.js"
 
 const router = Router();
 
+router.post("/clear-db", bookController.clearAllBooks);
+
 router.post(
   "/create",
   authenticateUser,

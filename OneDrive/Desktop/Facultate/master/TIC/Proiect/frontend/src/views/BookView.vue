@@ -11,15 +11,12 @@
       </div>
     </div>
 
-    <!-- Loading State -->
     <div v-if="loading" class="loading-state">Loading books...</div>
 
-    <!-- Error Message -->
     <div v-if="error" class="error-message">
       {{ error }}
     </div>
 
-    <!-- Books Grid -->
     <div v-if="books.length" class="books-grid">
       <div v-for="book in books" :key="book.id" class="book-card">
         <div class="book-image">
@@ -39,7 +36,6 @@
             <span class="uploader-name">{{ book.metadata?.creatorName || 'Unknown' }}</span>
           </div>
 
-          <!-- Book Actions -->
           <div class="book-actions" v-if="book.metadata?.createdBy === currentUser?.uid">
             <button @click="openEditModal(book)" class="btn btn-edit">Edit</button>
             <button @click="deleteBook(book.id)" class="btn btn-delete">Delete</button>
@@ -48,10 +44,8 @@
       </div>
     </div>
 
-    <!-- Empty State -->
     <div v-else-if="!loading" class="empty-state">No books found in the library.</div>
 
-    <!-- Modals -->
     <EditBookModal
       :show="showEditModal"
       :book="selectedBook"
@@ -87,10 +81,14 @@ export default {
 
     const currentUser = computed(() => store.getters.currentUser)
 
+    const currentSortCriteria = ref([{ field: 'title', order: 'asc' }])
+
     const fetchBooks = async () => {
       try {
         loading.value = true
         error.value = null
+
+        const sortParams = currentSortCriteria.value
 
         const response = await axios.get('http://localhost:3000/api/books', {
           headers: {
@@ -121,15 +119,21 @@ export default {
 
         loading.value = true
 
-        await axios.delete(`http://localhost:1234/api/books/${bookId}`, {
+        await axios.delete(`http://localhost:3000/api/books/${bookId}`, {
           headers: {
             Authorization: `Bearer ${currentUser.value?.token}`,
           },
         })
 
+        books.value = books.value.filter((book) => book.id !== bookId)
+
+        alert('Book deleted successfully')
         await fetchBooks()
       } catch (err) {
+        console.error('Delete error:', err)
         error.value = 'Failed to delete book: ' + (err.response?.data?.error || err.message)
+
+        alert(error.value)
       } finally {
         loading.value = false
       }
@@ -180,6 +184,7 @@ export default {
       openAddModal,
       closeAddModal,
       handleBookAdded,
+      deleteBook,
     }
   },
 }
@@ -341,7 +346,7 @@ export default {
 }
 
 .btn-delete:hover {
-  background-color: #c82333;
+  background-color: #e86a77;
 }
 
 .btn-delete:disabled {
@@ -358,12 +363,17 @@ export default {
 }
 
 .btn-edit {
-  background-color: #ffc107;
-  color: #000;
+  background-color: #18d6f4;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
 .btn-edit:hover {
-  background-color: #e0a800;
+  background-color: #7bc3fa;
 }
 
 .books-header {
